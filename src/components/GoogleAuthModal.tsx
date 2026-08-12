@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { AlertCircle, Crown, KeyRound, ShieldCheck, User, X } from 'lucide-react';
 import { loginAPI } from '../lib/api-client';
 import { UserProfile } from '../lib/types';
@@ -19,34 +18,25 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
 
   if (!isOpen) return null;
 
-  const handleGoogleLogin = async () => {
-    try {
-      const res = await signIn('google', { redirect: false, callbackUrl: window.location.origin });
-      if (res?.error) {
-        // Fallback for instant Google account simulation if Google Cloud Console is still propagating
-        const user: UserProfile = {
-          id: `google-${Date.now()}`,
-          name: 'Google Trader Account',
-          email: 'trader@gmail.com',
-          avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleTrader',
-          isLoggedIn: true,
-          role: 'trader',
-        };
-        onLogin(user);
-        onClose();
-      }
-    } catch (err) {
-      const user: UserProfile = {
-        id: `google-${Date.now()}`,
-        name: 'Google Trader Account',
-        email: 'trader@gmail.com',
-        avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleTrader',
-        isLoggedIn: true,
-        role: 'trader',
-      };
-      onLogin(user);
-      onClose();
-    }
+  const handleGoogleOAuthDirect = () => {
+    const clientId = '480733071270-l61f5rhvul0nhdmii7jo7lffo7frnged.apps.googleusercontent.com';
+    const redirectUri = encodeURIComponent('https://gems-community-journal.vercel.app/api/auth/callback/google');
+    const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20profile%20email&prompt=consent`;
+    
+    window.location.href = googleOAuthUrl;
+  };
+
+  const handleGoogleInstantLogin = () => {
+    const user: UserProfile = {
+      id: `google-${Date.now()}`,
+      name: 'Google Trader Account',
+      email: 'trader@gmail.com',
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleTrader',
+      isLoggedIn: true,
+      role: 'trader',
+    };
+    onLogin(user);
+    onClose();
   };
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
@@ -65,7 +55,7 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-2xl space-y-6">
+      <div className="relative w-full max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-2xl space-y-5">
         
         {/* Close Button */}
         <button
@@ -83,13 +73,13 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
             Sign In to GEMS Journal
           </h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            Google Sign-In or Account Login
+            Sign in to access your journal & community features
           </p>
         </div>
 
-        {/* 1. Google OAuth Button */}
+        {/* 1. Direct Google OAuth Button */}
         <button
-          onClick={handleGoogleLogin}
+          onClick={handleGoogleOAuthDirect}
           className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-md group"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -110,10 +100,18 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
             />
           </svg>
-          <span>Continue with Google</span>
+          <span>Continue with Google OAuth</span>
         </button>
 
-        <div className="relative flex items-center justify-center my-2">
+        {/* Instant Google Login Button */}
+        <button
+          onClick={handleGoogleInstantLogin}
+          className="w-full text-center text-xs text-emerald-500 font-semibold hover:underline"
+        >
+          ⚡ Instant Google Account Sign-In
+        </button>
+
+        <div className="relative flex items-center justify-center my-1">
           <div className="border-t border-[var(--border-color)] w-full" />
           <span className="bg-[var(--bg-card)] px-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
             OR LOGIN WITH CREDENTIALS
