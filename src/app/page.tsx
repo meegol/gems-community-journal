@@ -23,6 +23,7 @@ import {
   Trophy 
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
+import { LandingPage } from '@/components/LandingPage';
 import { TradeEntryModal } from '@/components/TradeEntryModal';
 import { TradeDetailModal } from '@/components/TradeDetailModal';
 import { GoogleAuthModal } from '@/components/GoogleAuthModal';
@@ -34,12 +35,11 @@ import { InstrumentType, SessionType, Trade, UserProfile } from '@/lib/types';
 
 export default function JournalPage() {
   const [user, setUser] = useState<UserProfile>({
-    id: 'u-admin-gatie',
-    name: 'GATIETRADES',
-    email: 'gatietrades@gemsjournal.io',
-    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GATIETRADES',
-    isLoggedIn: true,
-    role: 'admin',
+    id: '',
+    name: 'Guest Trader',
+    email: '',
+    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Guest',
+    isLoggedIn: false,
   });
 
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -56,8 +56,11 @@ export default function JournalPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   useEffect(() => {
-    setUser(getStoredUser());
-    fetchTradesAPI().then((data) => setTrades(data));
+    const storedUser = getStoredUser();
+    setUser(storedUser);
+    if (storedUser.isLoggedIn) {
+      fetchTradesAPI().then((data) => setTrades(data));
+    }
   }, []);
 
   const handleSaveTrade = async (trade: Trade) => {
@@ -85,6 +88,7 @@ export default function JournalPage() {
   const handleLogin = (newUser: UserProfile) => {
     setUser(newUser);
     saveUser(newUser);
+    fetchTradesAPI().then((data) => setTrades(data));
   };
 
   const handleLogout = () => {
@@ -98,6 +102,20 @@ export default function JournalPage() {
     setUser(loggedOut);
     saveUser(loggedOut);
   };
+
+  // Auth Guard: If not logged in, display Landing Page
+  if (!user.isLoggedIn) {
+    return (
+      <>
+        <LandingPage onOpenAuthModal={() => setIsAuthModalOpen(true)} />
+        <GoogleAuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onLogin={handleLogin}
+        />
+      </>
+    );
+  }
 
   // Filter Logic
   const filteredTrades = trades.filter((t) => {
