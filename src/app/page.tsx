@@ -33,7 +33,7 @@ import { CSVModal } from '@/components/CSVModal';
 import { deleteTradeAPI, fetchTradesAPI, saveTradeAPI } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/trade-calculator';
 import { getStoredUser, saveUser } from '@/lib/storage';
-import { signOutFirebase } from '@/lib/firebase';
+import { signOutFirebase, handleFirebaseRedirectResult } from '@/lib/firebase';
 import { InstrumentType, SessionType, Trade, UserProfile } from '@/lib/types';
 
 export default function JournalPage() {
@@ -62,12 +62,23 @@ export default function JournalPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   useEffect(() => {
-    const storedUser = getStoredUser();
-    setUser(storedUser);
-    if (storedUser.isLoggedIn) {
-      fetchTradesAPI().then((data) => setTrades(data));
-      checkFirstTimeOnboarding(storedUser.id);
-    }
+    // First: try to pick up a pending Firebase redirect sign-in result
+    handleFirebaseRedirectResult().then((redirectUser) => {
+      if (redirectUser) {
+        setUser(redirectUser);
+        saveUser(redirectUser);
+        fetchTradesAPI().then((data) => setTrades(data));
+        checkFirstTimeOnboarding(redirectUser.id);
+        return;
+      }
+      // No redirect result — load from local storage as normal
+      const storedUser = getStoredUser();
+      setUser(storedUser);
+      if (storedUser.isLoggedIn) {
+        fetchTradesAPI().then((data) => setTrades(data));
+        checkFirstTimeOnboarding(storedUser.id);
+      }
+    });
   }, []);
 
   // NextAuth Google Session Sync fallback
