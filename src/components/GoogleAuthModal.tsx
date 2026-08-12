@@ -22,16 +22,9 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
 
   const handleGoogleLogin = async () => {
     setErrorMessage('');
-    const res = await signInWithGoogleFirebase();
-    if (res.redirecting) {
-      // Page is navigating away for redirect-based auth — show status
-      setIsRedirecting(true);
-    } else if (res.user) {
-      onLogin(res.user);
-      onClose();
-    } else if (res.error) {
-      setErrorMessage(res.error);
-    }
+    setIsRedirecting(true);
+    // Navigates to Google — result picked up on return via handleFirebaseRedirectResult
+    await signInWithGoogleFirebase();
   };
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {

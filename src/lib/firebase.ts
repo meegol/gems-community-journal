@@ -2,7 +2,6 @@ import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut, 
@@ -40,45 +39,18 @@ function mapFirebaseUser(fbUser: any): UserProfile {
 }
 
 /**
- * Primary sign-in: tries popup first (works great on localhost).
- * If the popup is blocked or fails with a network/CORS error,
- * automatically falls back to redirect-based sign-in.
+ * Redirect-only Google sign-in. No popup. Navigates the user to Google,
+ * then back to the app. Call handleFirebaseRedirectResult() on page load
+ * to pick up the result.
  */
-export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | null; redirecting?: boolean; error?: string }> {
-  try {
-    // Try popup first
-    const result = await signInWithPopup(auth, googleProvider);
-    return { user: mapFirebaseUser(result.user) };
-  } catch (error: any) {
-    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-      // User deliberately closed the popup — no action
-      return { user: null };
-    }
-
-    // For network errors, popup blocked, or CORS issues — fall back to redirect
-    if (
-      error.code === 'auth/network-request-failed' ||
-      error.code === 'auth/popup-blocked' ||
-      error.code === 'auth/operation-not-supported-in-this-environment' ||
-      error.code === 'auth/internal-error'
-    ) {
-      console.warn('Popup failed, falling back to redirect sign-in:', error.code);
-      await signInWithRedirect(auth, googleProvider);
-      // signInWithRedirect navigates away — the result will be handled on next page load
-      return { user: null, redirecting: true };
-    }
-
-    console.error('Firebase Google Sign-In Error:', error);
-    return { 
-      user: null, 
-      error: `Sign-in failed: ${error.message || error.code}` 
-    };
-  }
+export async function signInWithGoogleFirebase(): Promise<{ redirecting: true }> {
+  await signInWithRedirect(auth, googleProvider);
+  return { redirecting: true };
 }
 
 /**
- * Call this once on app mount to pick up the result of a redirect sign-in.
- * Returns the user if a redirect sign-in just completed, otherwise null.
+ * Call once on app mount. If the user just came back from a Google redirect
+ * sign-in, this returns their profile. Otherwise returns null.
  */
 export async function handleFirebaseRedirectResult(): Promise<UserProfile | null> {
   try {
