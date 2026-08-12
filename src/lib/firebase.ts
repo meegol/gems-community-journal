@@ -3,8 +3,6 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
@@ -24,26 +22,6 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export async function checkFirebaseRedirectResult(): Promise<UserProfile | null> {
-  try {
-    const result = await getRedirectResult(auth);
-    if (result?.user) {
-      const fbUser = result.user;
-      return {
-        id: fbUser.uid,
-        name: fbUser.displayName || 'Google Trader',
-        email: fbUser.email || '',
-        avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
-        isLoggedIn: true,
-        role: 'trader',
-      };
-    }
-  } catch (error) {
-    console.error('Firebase Redirect Result Error:', error);
-  }
-  return null;
-}
-
 export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | null; error?: string }> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -51,7 +29,7 @@ export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | 
     return {
       user: {
         id: fbUser.uid,
-        name: fbUser.displayName || 'Google Trader',
+        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Trader',
         email: fbUser.email || '',
         avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
         isLoggedIn: true,
@@ -63,16 +41,9 @@ export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | 
     if (error.code === 'auth/popup-closed-by-user') {
       return { user: null };
     }
-    // Fallback: If Firebase provider is disabled or network fails, log user in gracefully
-    return {
-      user: {
-        id: `google-${Date.now()}`,
-        name: 'Google Trader',
-        email: 'trader@gmail.com',
-        avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleTrader',
-        isLoggedIn: true,
-        role: 'trader',
-      }
+    return { 
+      user: null, 
+      error: `[Firebase Error ${error.code || 'UNKNOWN'}]: ${error.message}` 
     };
   }
 }
