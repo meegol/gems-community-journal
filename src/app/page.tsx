@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { signOut, useSession } from 'next-auth/react';
 import { 
   Activity, 
   ArrowDownRight, 
@@ -34,6 +35,8 @@ import { getStoredUser, saveUser } from '@/lib/storage';
 import { InstrumentType, SessionType, Trade, UserProfile } from '@/lib/types';
 
 export default function JournalPage() {
+  const { data: session } = useSession();
+
   const [user, setUser] = useState<UserProfile>({
     id: '',
     name: 'Guest Trader',
@@ -55,13 +58,28 @@ export default function JournalPage() {
   const [sessionFilter, setSessionFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  // NextAuth Google Session Sync
   useEffect(() => {
-    const storedUser = getStoredUser();
-    setUser(storedUser);
-    if (storedUser.isLoggedIn) {
+    if (session?.user) {
+      const googleUser: UserProfile = {
+        id: (session.user as any).id || `google-${Date.now()}`,
+        name: session.user.name || 'Google Trader',
+        email: session.user.email || '',
+        avatar: session.user.image || 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleUser',
+        isLoggedIn: true,
+        role: 'trader',
+      };
+      setUser(googleUser);
+      saveUser(googleUser);
       fetchTradesAPI().then((data) => setTrades(data));
+    } else {
+      const storedUser = getStoredUser();
+      setUser(storedUser);
+      if (storedUser.isLoggedIn) {
+        fetchTradesAPI().then((data) => setTrades(data));
+      }
     }
-  }, []);
+  }, [session]);
 
   const handleSaveTrade = async (trade: Trade) => {
     const updated = await saveTradeAPI(trade);
@@ -92,6 +110,7 @@ export default function JournalPage() {
   };
 
   const handleLogout = () => {
+    signOut({ callbackUrl: '/' });
     const loggedOut: UserProfile = {
       id: '',
       name: 'Guest Trader',
