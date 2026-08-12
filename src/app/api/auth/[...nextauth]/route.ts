@@ -2,10 +2,11 @@ import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 
 const handler = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET || 'gems-community-journal-production-secret-auth-key-2026',
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || 'placeholder-client-id',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'placeholder-client-secret',
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
   ],
   callbacks: {
