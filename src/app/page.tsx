@@ -28,6 +28,7 @@ import { LandingPage } from '@/components/LandingPage';
 import { TradeEntryModal } from '@/components/TradeEntryModal';
 import { TradeDetailModal } from '@/components/TradeDetailModal';
 import { GoogleAuthModal } from '@/components/GoogleAuthModal';
+import { OnboardingModal } from '@/components/OnboardingModal';
 import { CSVModal } from '@/components/CSVModal';
 import { deleteTradeAPI, fetchTradesAPI, saveTradeAPI } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/trade-calculator';
@@ -49,6 +50,7 @@ export default function JournalPage() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [isNewTradeModalOpen, setIsNewTradeModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
@@ -64,6 +66,7 @@ export default function JournalPage() {
     setUser(storedUser);
     if (storedUser.isLoggedIn) {
       fetchTradesAPI().then((data) => setTrades(data));
+      checkFirstTimeOnboarding(storedUser.id);
     }
   }, []);
 
@@ -81,8 +84,18 @@ export default function JournalPage() {
       setUser(googleUser);
       saveUser(googleUser);
       fetchTradesAPI().then((data) => setTrades(data));
+      checkFirstTimeOnboarding(googleUser.id);
     }
   }, [session]);
+
+  const checkFirstTimeOnboarding = (userId: string) => {
+    if (!userId) return;
+    const onboardKey = `gems_onboarded_${userId}`;
+    const hasOnboarded = localStorage.getItem(onboardKey);
+    if (!hasOnboarded) {
+      setIsOnboardingOpen(true);
+    }
+  };
 
   const handleSaveTrade = async (trade: Trade) => {
     const updated = await saveTradeAPI(trade);
@@ -110,6 +123,7 @@ export default function JournalPage() {
     setUser(newUser);
     saveUser(newUser);
     fetchTradesAPI().then((data) => setTrades(data));
+    checkFirstTimeOnboarding(newUser.id);
   };
 
   const handleLogout = () => {
@@ -529,6 +543,17 @@ export default function JournalPage() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onLogin={handleLogin}
+      />
+
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => {
+          if (user.id) {
+            localStorage.setItem(`gems_onboarded_${user.id}`, 'true');
+          }
+          setIsOnboardingOpen(false);
+        }}
+        userName={user.name}
       />
 
       <CSVModal
