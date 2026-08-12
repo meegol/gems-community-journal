@@ -32,6 +32,7 @@ import { CSVModal } from '@/components/CSVModal';
 import { deleteTradeAPI, fetchTradesAPI, saveTradeAPI } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/trade-calculator';
 import { getStoredUser, saveUser } from '@/lib/storage';
+import { checkFirebaseRedirectResult, signOutFirebase } from '@/lib/firebase';
 import { InstrumentType, SessionType, Trade, UserProfile } from '@/lib/types';
 
 export default function JournalPage() {
@@ -58,7 +59,24 @@ export default function JournalPage() {
   const [sessionFilter, setSessionFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  // NextAuth Google Session Sync
+  // Check Firebase Redirect Result & Local Storage on mount
+  useEffect(() => {
+    checkFirebaseRedirectResult().then((fbUser) => {
+      if (fbUser) {
+        setUser(fbUser);
+        saveUser(fbUser);
+        fetchTradesAPI().then((data) => setTrades(data));
+      } else {
+        const storedUser = getStoredUser();
+        setUser(storedUser);
+        if (storedUser.isLoggedIn) {
+          fetchTradesAPI().then((data) => setTrades(data));
+        }
+      }
+    });
+  }, []);
+
+  // NextAuth Google Session Sync fallback
   useEffect(() => {
     if (session?.user) {
       const googleUser: UserProfile = {
@@ -72,12 +90,6 @@ export default function JournalPage() {
       setUser(googleUser);
       saveUser(googleUser);
       fetchTradesAPI().then((data) => setTrades(data));
-    } else {
-      const storedUser = getStoredUser();
-      setUser(storedUser);
-      if (storedUser.isLoggedIn) {
-        fetchTradesAPI().then((data) => setTrades(data));
-      }
     }
   }, [session]);
 
@@ -110,6 +122,7 @@ export default function JournalPage() {
   };
 
   const handleLogout = () => {
+    signOutFirebase();
     signOut({ callbackUrl: '/' });
     const loggedOut: UserProfile = {
       id: '',

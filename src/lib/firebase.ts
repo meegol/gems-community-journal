@@ -2,7 +2,9 @@ import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  signInWithPopup, 
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
@@ -22,8 +24,29 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+export async function checkFirebaseRedirectResult(): Promise<UserProfile | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) {
+      const fbUser = result.user;
+      return {
+        id: fbUser.uid,
+        name: fbUser.displayName || 'Google Trader',
+        email: fbUser.email || '',
+        avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
+        isLoggedIn: true,
+        role: 'trader',
+      };
+    }
+  } catch (error) {
+    console.error('Firebase Redirect Result Error:', error);
+  }
+  return null;
+}
+
 export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | null; error?: string }> {
   try {
+    // Try Popup first
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
     return {
@@ -40,6 +63,15 @@ export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | 
     console.error('Firebase Google Sign-In Error:', error);
     if (error.code === 'auth/popup-closed-by-user') {
       return { user: null };
+    }
+    if (error.code === 'auth/network-request-failed' || error.code === 'auth/popup-blocked') {
+      // Fall back to clean browser redirect which avoids third-party cookie/iframe network blocks
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return { user: null };
+      } catch (redirectErr: any) {
+        return { user: null, error: `[Firebase Redirect Error]: ${redirectErr.message}` };
+      }
     }
     return { 
       user: null, 
