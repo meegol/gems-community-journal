@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
+  <rect width="32" height="32" rx="8" fill="#080C14"/>
+  <rect x="1" y="1" width="30" height="30" rx="7" fill="none" stroke="#1E293B" stroke-width="1"/>
+  <!-- Diamond Gem Logo -->
+  <path d="M 16 6 L 24 13 L 16 26 L 8 13 Z" fill="url(#gemGrad)" stroke="#10B981" stroke-width="1.5"/>
+  <path d="M 8 13 L 24 13" stroke="#00E676" stroke-width="1"/>
+  <path d="M 12 13 L 16 26 L 20 13" stroke="#00E676" stroke-width="0.8" opacity="0.7"/>
+  <path d="M 16 6 L 12 13 M 16 6 L 20 13" stroke="#ffffff" stroke-width="0.8" opacity="0.9"/>
+  <defs>
+    <linearGradient id="gemGrad" x1="16" y1="6" x2="16" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+</svg>
