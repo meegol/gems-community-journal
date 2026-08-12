@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle2, KeyRound, Mail, ShieldCheck, Sparkles, User, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { UserProfile } from '../lib/types';
 
 interface GoogleAuthModalProps {
@@ -27,27 +28,36 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
   const [signUpPassword, setSignUpPassword] = useState('');
   const [signUpConfirm, setSignUpConfirm] = useState('');
   const [signUpError, setSignUpError] = useState('');
-  const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [signUpLoading, setSignUpLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  function mapSupabaseUser(sbUser: any, name?: string): UserProfile {
+    const displayName = name || sbUser.user_metadata?.name || sbUser.email?.split('@')[0] || 'Trader';
+    return {
+      id: sbUser.id,
+      name: displayName,
+      email: sbUser.email || '',
+      avatar: sbUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(sbUser.email || sbUser.id)}`,
+      isLoggedIn: true,
+      role: 'trader',
+    };
+  }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignInError('');
     setSignInLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: signInEmail, password: signInPassword }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: signInEmail.trim(),
+        password: signInPassword,
       });
-      const data = await res.json();
-      if (data.success && data.user) {
-        onLogin({ ...data.user, isLoggedIn: true });
+      if (error) {
+        setSignInError(error.message || 'Invalid email or password.');
+      } else if (data.user) {
+        onLogin(mapSupabaseUser(data.user));
         onClose();
-      } else {
-        setSignInError(data.error || 'Invalid email or password.');
       }
     } catch {
       setSignInError('Connection error. Please try again.');
@@ -69,23 +79,45 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
     }
     setSignUpLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: signUpEmail, password: signUpPassword, name: signUpName }),
+      const { data, error } = await supabase.auth.signUp({
+        email: signUpEmail.trim(),
+        password: signUpPassword,
+        options: {
+          data: { name: signUpName.trim() },
+        },
       });
-      const data = await res.json();
-      if (data.success && data.user) {
-        onLogin({ ...data.user, isLoggedIn: true });
-        onClose();
-      } else {
-        setSignUpError(data.error || 'Registration failed. Please try again.');
+      if (error) {
+        setSignUpError(error.message || 'Registration failed. Please try again.');
+      } else if (data.user) {
+        // Supabase may require email confirmation — check session
+        if (data.session) {
+          onLogin(mapSupabaseUser(data.user, signUpName.trim()));
+          onClose();
+        } else {
+          // Email confirmation required — sign them in immediately anyway
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: signUpEmail.trim(),
+            password: signUpPassword,
+          });
+          if (signInData?.user) {
+            onLogin(mapSupabaseUser(signInData.user, signUpName.trim()));
+            onClose();
+          } else {
+            setSignUpError(signInError?.message || 'Account created! Please check your email to confirm, then sign in.');
+          }
+        }
       }
     } catch {
       setSignUpError('Connection error. Please try again.');
     } finally {
       setSignUpLoading(false);
     }
+  };
+
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    setSignInError('');
+    setSignUpError('');
   };
 
   return (
@@ -114,7 +146,7 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
           {(['signin', 'signup'] as Tab[]).map((t) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setSignInError(''); setSignUpError(''); }}
+              onClick={() => switchTab(t)}
               className={`flex-1 pb-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 -mb-px ${
                 tab === t
                   ? 'border-emerald-500 text-emerald-400'
@@ -128,7 +160,7 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
 
         <div className="px-6 pb-6">
 
-          {/* ── SIGN IN TAB ── */}
+          {/* SIGN IN */}
           {tab === 'signin' && (
             <form onSubmit={handleSignIn} className="space-y-4">
               {signInError && (
@@ -182,26 +214,20 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
               </button>
               <p className="text-center text-xs text-[var(--text-muted)]">
                 No account?{' '}
-                <button type="button" onClick={() => setTab('signup')} className="text-emerald-400 font-bold hover:underline">
+                <button type="button" onClick={() => switchTab('signup')} className="text-emerald-400 font-bold hover:underline">
                   Create one free
                 </button>
               </p>
             </form>
           )}
 
-          {/* ── SIGN UP TAB ── */}
+          {/* SIGN UP */}
           {tab === 'signup' && (
             <form onSubmit={handleSignUp} className="space-y-4">
               {signUpError && (
                 <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{signUpError}</span>
-                </div>
-              )}
-              {signUpSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>Account created! Signing you in...</span>
                 </div>
               )}
               <div>
@@ -277,7 +303,7 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
               </button>
               <p className="text-center text-xs text-[var(--text-muted)]">
                 Already have an account?{' '}
-                <button type="button" onClick={() => setTab('signin')} className="text-emerald-400 font-bold hover:underline">
+                <button type="button" onClick={() => switchTab('signin')} className="text-emerald-400 font-bold hover:underline">
                   Sign in
                 </button>
               </p>
