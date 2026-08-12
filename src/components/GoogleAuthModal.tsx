@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { AlertCircle, Crown, KeyRound, ShieldCheck, User, X } from 'lucide-react';
 import { loginAPI } from '../lib/api-client';
+import { signInWithGoogleFirebase } from '../lib/firebase';
 import { UserProfile } from '../lib/types';
 
 interface GoogleAuthModalProps {
@@ -20,23 +20,10 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
-    // 1. Immediately log user in on frontend
-    const googleUser: UserProfile = {
-      id: `google-${Date.now()}`,
-      name: 'Google Trader',
-      email: 'trader@gmail.com',
-      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleTrader',
-      isLoggedIn: true,
-      role: 'trader',
-    };
-    onLogin(googleUser);
-    onClose();
-
-    // 2. Trigger NextAuth OAuth background session sync
-    try {
-      signIn('google', { redirect: false });
-    } catch (err) {
-      console.warn('NextAuth background sync:', err);
+    const googleUser = await signInWithGoogleFirebase();
+    if (googleUser) {
+      onLogin(googleUser);
+      onClose();
     }
   };
 
@@ -78,7 +65,7 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
           </p>
         </div>
 
-        {/* 1. Google Auth Button */}
+        {/* 1. Firebase Google Auth Popup Button */}
         <button
           onClick={handleGoogleLogin}
           className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-md group"
