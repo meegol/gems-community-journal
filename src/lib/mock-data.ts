@@ -12,19 +12,6 @@ export const INITIAL_TRADES: Trade[] = [];
 // Clean Initial Community Posts (Demo data removed for fresh start)
 export const INITIAL_COMMUNITY_POSTS: CommunityPost[] = [];
 
-// Initial Leaderboard featuring hardcoded Admin account GATIETRADES
-export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    userId: 'u-admin-gatie',
-    handle: 'GATIETRADES',
-    avatarSeed: 'GATIETRADES',
-    badge: '👑 FOUNDER / ADMIN',
-    winRate: 100.0,
-    totalR: 0.0,
-    totalPnL: 0.0,
-    totalTrades: 0,
-    bestTradeR: 0.0,
-    isCurrentUser: true,
-  },
-];
+// Leaderboard starts empty — populated by real user data only
+export const INITIAL_LEADERBOARD: LeaderboardEntry[] = [];
+
