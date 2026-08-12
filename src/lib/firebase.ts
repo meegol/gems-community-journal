@@ -22,31 +22,28 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export async function signInWithGoogleFirebase(): Promise<UserProfile | null> {
+export async function signInWithGoogleFirebase(): Promise<{ user: UserProfile | null; error?: string }> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
     return {
-      id: fbUser.uid,
-      name: fbUser.displayName || 'Google Trader',
-      email: fbUser.email || '',
-      avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
-      isLoggedIn: true,
-      role: 'trader',
+      user: {
+        id: fbUser.uid,
+        name: fbUser.displayName || 'Google Trader',
+        email: fbUser.email || '',
+        avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
+        isLoggedIn: true,
+        role: 'trader',
+      }
     };
   } catch (error: any) {
     console.error('Firebase Google Sign-In Error:', error);
     if (error.code === 'auth/popup-closed-by-user') {
-      return null;
+      return { user: null };
     }
-    // Instant fallback if domain authorization or popup policy blocks window
-    return {
-      id: `google-${Date.now()}`,
-      name: 'Google Trader Account',
-      email: 'trader@gmail.com',
-      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GoogleTrader',
-      isLoggedIn: true,
-      role: 'trader',
+    return { 
+      user: null, 
+      error: `[Firebase Error ${error.code || 'UNKNOWN'}]: ${error.message}` 
     };
   }
 }

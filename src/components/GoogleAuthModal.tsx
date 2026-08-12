@@ -20,10 +20,13 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
-    const googleUser = await signInWithGoogleFirebase();
-    if (googleUser) {
-      onLogin(googleUser);
+    setErrorMessage('');
+    const res = await signInWithGoogleFirebase();
+    if (res.user) {
+      onLogin(res.user);
       onClose();
+    } else if (res.error) {
+      setErrorMessage(res.error);
     }
   };
 
@@ -65,6 +68,13 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
           </p>
         </div>
 
+        {errorMessage && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2 break-words">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {/* 1. Firebase Google Auth Popup Button */}
         <button
           onClick={handleGoogleLogin}
@@ -100,13 +110,6 @@ export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalPro
 
         {/* 2. Credentials Form */}
         <form onSubmit={handleCredentialsLogin} className="space-y-3">
-          {errorMessage && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
           <div>
             <label className="block text-xs font-bold text-[var(--text-muted)] mb-1">
               Username
