@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { AdminCredentials } from './mock-data';
 import { CommunityPost, Trade, UserProfile } from './types';
 
@@ -7,6 +8,7 @@ const DATA_DIR = path.join(process.cwd(), '.data');
 const TRADES_FILE = path.join(DATA_DIR, 'trades.json');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
 const PROFILES_FILE = path.join(DATA_DIR, 'profiles.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 // Ensure database directory and files exist
 function ensureDatabase() {
@@ -29,6 +31,9 @@ function ensureDatabase() {
       role: 'admin',
     };
     fs.writeFileSync(PROFILES_FILE, JSON.stringify([adminUser], null, 2), 'utf-8');
+  }
+  if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2), 'utf-8');
   }
 }
 
@@ -124,4 +129,90 @@ export function authenticateDbUser(username: string, password: string): UserProf
     };
   }
   return null;
+}
+
+// Hash password with SHA-256
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password + 'gems-salt-2026').digest('hex');
+}
+
+interface StoredUser {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  avatar: string;
+  createdAt: string;
+}
+
+function getStoredUsers(): StoredUser[] {
+  ensureDatabase();
+  try {
+    const raw = fs.readFileSync(USERS_FILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+// Register a new user with email + password
+export function registerDbUser(
+  email: string,
+  password: string,
+  name: string
+): { user: UserProfile | null; error?: string } {
+  ensureDatabase();
+  const users = getStoredUsers();
+  const exists = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (exists) {
+    return { user: null, error: 'An account with this email already exists.' };
+  }
+
+  const id = `u-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`;
+  const newUser: StoredUser = {
+    id,
+    email,
+    name,
+    passwordHash: hashPassword(password),
+    avatar,
+    createdAt: new Date().toISOString(),
+  };
+
+  users.push(newUser);
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+
+  return {
+    user: {
+      id,
+      name,
+      email,
+      avatar,
+      isLoggedIn: true,
+      role: 'trader',
+    },
+  };
+}
+
+// Login with email + password
+export function loginDbUserByEmail(
+  email: string,
+  password: string
+): UserProfile | null {
+  ensureDatabase();
+  const users = getStoredUsers();
+  const found = users.find(
+    (u) =>
+      u.email.toLowerCase() === email.toLowerCase() &&
+      u.passwordHash === hashPassword(password)
+  );
+  if (!found) return null;
+  return {
+    id: found.id,
+    name: found.name,
+    email: found.email,
+    avatar: found.avatar,
+    isLoggedIn: true,
+    role: 'trader',
+  };
 }

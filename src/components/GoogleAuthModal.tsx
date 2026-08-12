@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AlertCircle, Crown, KeyRound, ShieldCheck, User, X } from 'lucide-react';
-import { loginAPI } from '../lib/api-client';
-import { signInWithGoogleFirebase } from '../lib/firebase';
+import { AlertCircle, CheckCircle2, KeyRound, Mail, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 
 interface GoogleAuthModalProps {
@@ -12,145 +10,281 @@ interface GoogleAuthModalProps {
   onLogin: (user: UserProfile) => void;
 }
 
+type Tab = 'signin' | 'signup';
+
 export function GoogleAuthModal({ isOpen, onClose, onLogin }: GoogleAuthModalProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [tab, setTab] = useState<Tab>('signin');
+
+  // Sign In state
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
+  const [signInError, setSignInError] = useState('');
+  const [signInLoading, setSignInLoading] = useState(false);
+
+  // Sign Up state
+  const [signUpName, setSignUpName] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState('');
+  const [signUpConfirm, setSignUpConfirm] = useState('');
+  const [signUpError, setSignUpError] = useState('');
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
+  const [signUpLoading, setSignUpLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleGoogleLogin = async () => {
-    setErrorMessage('');
-    setIsRedirecting(true);
-    // Navigates to Google — result picked up on return via handleFirebaseRedirectResult
-    await signInWithGoogleFirebase();
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignInError('');
+    setSignInLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: signInEmail, password: signInPassword }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        onLogin({ ...data.user, isLoggedIn: true });
+        onClose();
+      } else {
+        setSignInError(data.error || 'Invalid email or password.');
+      }
+    } catch {
+      setSignInError('Connection error. Please try again.');
+    } finally {
+      setSignInLoading(false);
+    }
   };
 
-  const handleCredentialsLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-
-    const authenticatedUser = await loginAPI(username.trim(), password.trim());
-
-    if (authenticatedUser) {
-      onLogin(authenticatedUser);
-      onClose();
-    } else {
-      setErrorMessage('Invalid username or password.');
+    setSignUpError('');
+    if (signUpPassword !== signUpConfirm) {
+      setSignUpError('Passwords do not match.');
+      return;
+    }
+    if (signUpPassword.length < 6) {
+      setSignUpError('Password must be at least 6 characters.');
+      return;
+    }
+    setSignUpLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: signUpEmail, password: signUpPassword, name: signUpName }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        onLogin({ ...data.user, isLoggedIn: true });
+        onClose();
+      } else {
+        setSignUpError(data.error || 'Registration failed. Please try again.');
+      }
+    } catch {
+      setSignUpError('Connection error. Please try again.');
+    } finally {
+      setSignUpLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-2xl space-y-5">
-        
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-        >
-          <X className="h-5 w-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+      <div className="relative w-full max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-2xl overflow-hidden">
 
-        <div className="text-center">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 text-center">
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 mb-3">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <h2 className="text-xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            Sign In to GEMS Journal
+            GEMS Trading Journal
           </h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            Sign in with Google or Account Credentials
-          </p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">Your private futures execution log</p>
         </div>
 
-        {errorMessage && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2 break-words">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
+        {/* Tabs */}
+        <div className="flex border-b border-[var(--border-color)] mx-6 mb-5">
+          {(['signin', 'signup'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTab(t); setSignInError(''); setSignUpError(''); }}
+              className={`flex-1 pb-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 -mb-px ${
+                tab === t
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {t === 'signin' ? 'Sign In' : 'Create Account'}
+            </button>
+          ))}
+        </div>
 
-        {/* 1. Firebase Google Auth Button */}
-        <button
-          onClick={handleGoogleLogin}
-          disabled={isRedirecting}
-          className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-md group disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isRedirecting ? (
-            <>
-              <svg className="h-4 w-4 animate-spin text-slate-500" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-              <span>Redirecting to Google...</span>
-            </>
-          ) : (
-            <>
-              <svg className="h-5 w-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              <span>Continue with Google</span>
-            </>
+        <div className="px-6 pb-6">
+
+          {/* ── SIGN IN TAB ── */}
+          {tab === 'signin' && (
+            <form onSubmit={handleSignIn} className="space-y-4">
+              {signInError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{signInError}</span>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="email"
+                    value={signInEmail}
+                    onChange={(e) => setSignInEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">Password</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="password"
+                    value={signInPassword}
+                    onChange={(e) => setSignInPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={signInLoading}
+                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-black font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {signInLoading ? (
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                <span>{signInLoading ? 'Signing In...' : 'Sign In'}</span>
+              </button>
+              <p className="text-center text-xs text-[var(--text-muted)]">
+                No account?{' '}
+                <button type="button" onClick={() => setTab('signup')} className="text-emerald-400 font-bold hover:underline">
+                  Create one free
+                </button>
+              </p>
+            </form>
           )}
-        </button>
 
-        <div className="relative flex items-center justify-center my-1">
-          <div className="border-t border-[var(--border-color)] w-full" />
-          <span className="bg-[var(--bg-card)] px-3 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
-            OR LOGIN WITH CREDENTIALS
-          </span>
+          {/* ── SIGN UP TAB ── */}
+          {tab === 'signup' && (
+            <form onSubmit={handleSignUp} className="space-y-4">
+              {signUpError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{signUpError}</span>
+                </div>
+              )}
+              {signUpSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>Account created! Signing you in...</span>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">Display Name</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    value={signUpName}
+                    onChange={(e) => setSignUpName(e.target.value)}
+                    placeholder="TraderXYZ"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="email"
+                    value={signUpEmail}
+                    onChange={(e) => setSignUpEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">Password</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="password"
+                    value={signUpPassword}
+                    onChange={(e) => setSignUpPassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">Confirm Password</label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
+                  <input
+                    type="password"
+                    value={signUpConfirm}
+                    onChange={(e) => setSignUpConfirm(e.target.value)}
+                    placeholder="Re-enter password"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={signUpLoading}
+                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-black font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {signUpLoading ? (
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                <span>{signUpLoading ? 'Creating Account...' : 'Create Account'}</span>
+              </button>
+              <p className="text-center text-xs text-[var(--text-muted)]">
+                Already have an account?{' '}
+                <button type="button" onClick={() => setTab('signin')} className="text-emerald-400 font-bold hover:underline">
+                  Sign in
+                </button>
+              </p>
+            </form>
+          )}
+
         </div>
-
-        {/* 2. Credentials Form */}
-        <form onSubmit={handleCredentialsLogin} className="space-y-3">
-          <div>
-            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1">
-              Username
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                className="w-full pl-9 pr-3 py-2 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-emerald-500"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full pl-9 pr-3 py-2 text-sm font-semibold rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] focus:border-emerald-500"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-          >
-            <Crown className="h-4 w-4 stroke-[2.5]" />
-            <span>Sign In</span>
-          </button>
-        </form>
-
       </div>
     </div>
   );
